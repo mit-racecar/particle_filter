@@ -1,0 +1,4 @@
+<launch>
+    <arg name="map" default="$(find ta_lab5)/maps/basement_fixed.map.yaml"/>
+    <node pkg="map_server" name="map_server" type="map_server" args="$(arg map)" />
+</launch>
