@@ -16,21 +16,21 @@ sudo apt-get update
 rosdep install -r --from-paths src --ignore-src --rosdistro kinetic -y
 ```
 
-For RangeLibc:
+For [RangeLibc](https://github.com/kctess5/range_libc):
 
 ```
 sudo pip install cython
 git clone http://github.com/kctess5/range_libc
 cd range_libc/pywrappers
 # on VM
-sudo python setup.py install
+./compile.sh
 # on car - compiles GPU ray casting methods
-sudo WITH_CUDA=ON python setup.py install
+./compile_with_cuda.sh
 ```
 
 # Usage
 
-The majority of parameters you might want to tweak are in the launch/localize.launch file. You may have to modify the "odometry_topic" parameter to match your environment.
+The majority of parameters you might want to tweak are in the launch/localize.launch file. You may have to modify the "odometry_topic" or "scan_topic" parameters to match your environment.
 
 ```
 roslaunch particle_filter localize.launch
