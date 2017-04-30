@@ -66,10 +66,12 @@ def quaternion_to_angle(q):
     return yaw
 
 def rotation_matrix(theta):
+    ''' Creates a rotation matrix for the given angle in radians '''
     c, s = np.cos(theta), np.sin(theta)
     return np.matrix([[c, -s], [s, c]])
 
 def particle_to_pose(particle):
+    ''' Converts a particle in the form [x, y, theta] into a Pose object '''
     pose = Pose()
     pose.position.x = particle[0]
     pose.position.y = particle[1]
@@ -77,9 +79,13 @@ def particle_to_pose(particle):
     return pose
 
 def particles_to_poses(particles):
+    ''' Converts a two dimensional array of particles into an array of Poses. 
+        Particles can be a array like [[x0, y0, theta0], [x1, y1, theta1]...]
+    '''
     return map(particle_to_pose, particles)
 
 def make_header(frame_id, stamp=None):
+    ''' Creates a Header object for stamped ROS objects '''
     if stamp == None:
         stamp = rospy.Time.now()
     header = Header()
@@ -87,17 +93,11 @@ def make_header(frame_id, stamp=None):
     header.frame_id = frame_id
     return header
 
-def point(npt):
-    pt = Point32()
-    pt.x = npt[0]
-    pt.y = npt[1]
-    return pt
-
-def points(arr):
-    return map(point, arr)
-
-# converts map space coordinates to world space coordinates
 def map_to_world_slow(x,y,t,map_info):
+    ''' Converts given (x,y,t) coordinates from the coordinate space of the map (pixels) into world coordinates (meters).
+        Provide the MapMetaData object from a map message to specify the change in coordinates.
+        *** Logical, but slow implementation, when you need a lot of coordinate conversions, use the map_to_world function
+    ''' 
     scale = map_info.resolution
     angle = quaternion_to_angle(map_info.origin.orientation)
     rot = rotation_matrix(angle)
@@ -111,10 +111,19 @@ def map_to_world_slow(x,y,t,map_info):
     return world[0,0],world[1,0],t+angle
 
 def map_to_world(poses,map_info):
+    ''' Takes a two dimensional numpy array of poses:
+            [[x0,y0,theta0],
+             [x1,y1,theta1],
+             [x2,y2,theta2],
+                   ...     ]
+        And converts them from map coordinate space (pixels) to world coordinate space (meters).
+        - Conversion is done in place, so this function does not return anything.
+        - Provide the MapMetaData object from a map message to specify the change in coordinates.
+        - This implements the same computation as map_to_world_slow but vectorized and inlined
+    '''
+
     scale = map_info.resolution
     angle = quaternion_to_angle(map_info.origin.orientation)
-
-    # rotate
 
     # rotation
     c, s = np.cos(angle), np.sin(angle)
@@ -132,8 +141,17 @@ def map_to_world(poses,map_info):
     poses[:,2] += angle
 
 def world_to_map(poses, map_info):
-    # equivalent to map_to_grid(world_to_map(poses))
-    # operates in place
+    ''' Takes a two dimensional numpy array of poses:
+            [[x0,y0,theta0],
+             [x1,y1,theta1],
+             [x2,y2,theta2],
+                   ...     ]
+        And converts them from world coordinate space (meters) to world coordinate space (pixels).
+        - Conversion is done in place, so this function does not return anything.
+        - Provide the MapMetaData object from a map message to specify the change in coordinates.
+        - This implements the same computation as world_to_map_slow but vectorized and inlined
+        - You may have to transpose the returned x and y coordinates to directly index a pixel array
+    '''
     scale = map_info.resolution
     angle = -quaternion_to_angle(map_info.origin.orientation)
 
@@ -152,8 +170,11 @@ def world_to_map(poses, map_info):
     poses[:,1] = s*temp       + c*poses[:,1]
     poses[:,2] += angle
 
-# converts world space coordinates to map space coordinates
 def world_to_map_slow(x,y,t, map_info):
+    ''' Converts given (x,y,t) coordinates from the coordinate space of the world (meters) into map coordinates (pixels).
+        Provide the MapMetaData object from a map message to specify the change in coordinates.
+        *** Logical, but slow implementation, when you need a lot of coordinate conversions, use the world_to_map function
+    ''' 
     scale = map_info.resolution
     angle = quaternion_to_angle(map_info.origin.orientation)
     rot = rotation_matrix(-angle)

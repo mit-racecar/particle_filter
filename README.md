@@ -33,12 +33,12 @@ sudo WITH_CUDA=ON python setup.py install
 The majority of parameters you might want to tweak are in the launch/localize.launch file. You may have to modify the "odometry_topic" parameter to match your environment.
 
 ```
-roslaunch ta_lab5 localize.launch
+roslaunch particle_filter localize.launch
 ```
 
 Once the particle filter is running, you can visualize the map and other particle filter visualization message in RViz. Use the "2D Pose Estimate" tool from the RViz toolbar to initialize the particle locations.
 
-See [launch/localize.launch](/ta_lab5/launch/localize.launch) for docs on available parameters and arguments.
+See [launch/localize.launch](/particle_filter/launch/localize.launch) for docs on available parameters and arguments.
 
 The "range_method" parameter determines which RangeLibc ray casting method to use. The default is cddt because it is fast and has a low initialization time. The fastest option on the CPU is "glt" but it has a slow startup. The fastest version if you have can compile RangeLibc with CUDA enabled is "rmgpu". See this performance comparison chart:
 
@@ -46,8 +46,8 @@ The "range_method" parameter determines which RangeLibc ray casting method to us
 
 # Docs
 
-This code is the staff solution to the lab guide found in the [/docs](/ta_lab5/docs) folder. A mathematical derivation of MCL is available in that guide.
+This code is the staff solution to the lab guide found in the [/docs](/particle_filter/docs) folder. A mathematical derivation of MCL is available in that guide.
 
-There is also documentation on RangeLibc in the [/docs](/ta_lab5/docs) folder.
+There is also documentation on RangeLibc in the [/docs](/particle_filter/docs) folder.
 
 The code itself also contains comments describing purpose of each method.

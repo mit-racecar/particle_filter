@@ -31,7 +31,7 @@ VAR_NO_EVAL_SENSOR_MODEL = 0
 VAR_CALC_RANGE_MANY_EVAL_SENSOR = 1
 VAR_REPEAT_ANGLES_EVAL_SENSOR = 2
 VAR_REPEAT_ANGLES_EVAL_SENSOR_ONE_SHOT = 3
-
+VAR_RADIAL_CDDT_OPTIMIZATIONS = 4
 
 class ParticleFiler():
     '''
@@ -52,6 +52,18 @@ class ParticleFiler():
         self.PUBLISH_ODOM      = bool(rospy.get_param("~publish_odom", "1"))
         self.DO_VIZ            = bool(rospy.get_param("~viz"))
 
+        # sensor model constants
+        self.Z_SHORT   = float(rospy.get_param("~z_short", 0.01))
+        self.Z_MAX     = float(rospy.get_param("~z_max", 0.07))
+        self.Z_RAND    = float(rospy.get_param("~z_rand", 0.12))
+        self.Z_HIT     = float(rospy.get_param("~z_hit", 0.75))
+        self.SIGMA_HIT = float(rospy.get_param("~sigma_hit", 8.0))
+
+        # motion model constants
+        self.MOTION_DISPERSION_X = float(rospy.get_param("~motion_dispersion_x", 0.05))
+        self.MOTION_DISPERSION_Y = float(rospy.get_param("~motion_dispersion_y", 0.025))
+        self.MOTION_DISPERSION_THETA = float(rospy.get_param("~motion_dispersion_theta", 0.25))
+        
         # various data containers used in the MCL algorithm
         self.MAX_RANGE_PX = None
         self.odometry_data = np.array([0.0,0.0,0.0])
@@ -99,7 +111,7 @@ class ParticleFiler():
         self.rect_pub      = rospy.Publisher("/pf/viz/poly1", PolygonStamped, queue_size = 1)
 
         if self.PUBLISH_ODOM:
-            self.odom_pub      = rospy.Publisher("/pf/pose/odom", Odometry, queue_size = 1)
+            self.odom_pub = rospy.Publisher("/pf/pose/odom", Odometry, queue_size = 1)
 
         # these topics are for coordinate space things
         self.pub_tf = tf.TransformBroadcaster()
@@ -201,6 +213,7 @@ class ParticleFiler():
             return
 
         if self.pose_pub.get_num_connections() > 0 and isinstance(self.inferred_pose, np.ndarray):
+            # Publish the inferred pose for visualization
             ps = PoseStamped()
             ps.header = Utils.make_header("map")
             ps.pose.position.x = self.inferred_pose[0]
@@ -209,6 +222,7 @@ class ParticleFiler():
             self.pose_pub.publish(ps)
 
         if self.particle_pub.get_num_connections() > 0:
+            # publish a downsampled version of the particle distribution to avoid a lot of latency
             if self.MAX_PARTICLES > self.MAX_VIZ_PARTICLES:
                 # randomly downsample particles
                 proposal_indices = np.random.choice(self.particle_indices, self.MAX_VIZ_PARTICLES, p=self.weights)
@@ -226,12 +240,14 @@ class ParticleFiler():
             self.publish_scan(self.downsampled_angles, self.viz_ranges)
 
     def publish_particles(self, particles):
+        # publish the given particles as a PoseArray object
         pa = PoseArray()
         pa.header = Utils.make_header("map")
         pa.poses = Utils.particles_to_poses(particles)
         self.particle_pub.publish(pa)
 
     def publish_scan(self, angles, ranges):
+        # publish the given angels and ranges as a laser scan message
         ls = LaserScan()
         ls.header = Utils.make_header("laser", stamp=self.last_stamp)
         ls.angle_min = np.min(angles)
@@ -254,6 +270,7 @@ class ParticleFiler():
             self.viz_ranges = np.zeros(self.downsampled_angles.shape[0], dtype=np.float32)
             print self.downsampled_angles.shape[0]
 
+        # store the necessary scanner information for later processing
         self.downsampled_ranges = np.array(msg.ranges[::self.ANGLE_STEP])
         self.lidar_initialized = True
         # self.update()
@@ -272,11 +289,11 @@ class ParticleFiler():
         pose = np.array([position[0], position[1], orientation])
 
         if isinstance(self.last_pose, np.ndarray):
+            # changes in x,y,theta in local coordinate system of the car
             rot = Utils.rotation_matrix(-self.last_pose[2])
             delta = np.array([position - self.last_pose[0:2]]).transpose()
             local_delta = (rot*delta).transpose()
-
-            # changes in x,y,theta in local coordinate system of the car
+            
             self.odometry_data = np.array([local_delta[0,0], local_delta[0,1], orientation - self.last_pose[2]])
             self.last_pose = pose
             self.last_stamp = msg.header.stamp
@@ -340,13 +357,12 @@ class ParticleFiler():
         '''
         print "Precomputing sensor model"
         # sensor model constants
-        z_short = 0.01
-        z_max = 0.07
-        z_rand = 0.12
-        sigma_hit = 8.0
-        z_hit = 0.75
-        c_r = 0.01
-
+        z_short = self.Z_SHORT
+        z_max   = self.Z_MAX
+        z_rand  = self.Z_RAND
+        z_hit   = self.Z_HIT
+        sigma_hit = self.SIGMA_HIT
+        
         table_width = int(self.MAX_RANGE_PX) + 1
         self.sensor_model_table = np.zeros((table_width,table_width))
 
@@ -439,10 +455,9 @@ class ParticleFiler():
         self.local_deltas[:,2] = action[2]
 
         proposal_dist[:,:] += self.local_deltas
-        add_rand = 0.05
-        proposal_dist[:,0] += np.random.normal(loc=0.0,scale=add_rand,size=self.MAX_PARTICLES)
-        proposal_dist[:,1] += np.random.normal(loc=0.0,scale=add_rand*0.5,size=self.MAX_PARTICLES)
-        proposal_dist[:,2] += np.random.normal(loc=0.0,scale=0.25,size=self.MAX_PARTICLES)
+        proposal_dist[:,0] += np.random.normal(loc=0.0,scale=self.MOTION_DISPERSION_X,size=self.MAX_PARTICLES)
+        proposal_dist[:,1] += np.random.normal(loc=0.0,scale=self.MOTION_DISPERSION_Y,size=self.MAX_PARTICLES)
+        proposal_dist[:,2] += np.random.normal(loc=0.0,scale=self.MOTION_DISPERSION_THETA,size=self.MAX_PARTICLES)
 
     def sensor_model(self, proposal_dist, obs, weights):
         '''
@@ -454,6 +469,9 @@ class ParticleFiler():
         - VAR_REPEAT_ANGLES_EVAL_SENSOR is the most stable, and is very fast.
         - VAR_NO_EVAL_SENSOR_MODEL directly indexes the precomputed sensor model. This is slow
                                    but it demonstrates what self.range_method.eval_sensor_model does
+        - VAR_RADIAL_CDDT_OPTIMIZATIONS is only compatible with CDDT or PCDDT, it implments the radial
+                                        optimizations to CDDT which simultaneously performs ray casting
+                                        in two directions, reducing the amount of work by roughly a third
         '''
         
         num_rays = self.downsampled_angles.shape[0]
@@ -468,7 +486,18 @@ class ParticleFiler():
             self.tiled_angles = np.tile(self.downsampled_angles, self.MAX_PARTICLES)
             self.first_sensor_update = False
 
-        if self.RANGELIB_VAR == VAR_REPEAT_ANGLES_EVAL_SENSOR_ONE_SHOT:
+        if self.RANGELIB_VAR == VAR_RADIAL_CDDT_OPTIMIZATIONS:
+            if "cddt" in self.WHICH_RM:
+                self.queries[:,:] = proposal_dist[:,:]
+                self.range_method.calc_range_many_radial_optimized(num_rays, self.downsampled_angles[0], self.downsampled_angles[-1], self.queries, self.ranges)
+
+                # evaluate the sensor model
+                self.range_method.eval_sensor_model(obs, self.ranges, self.weights, num_rays, self.MAX_PARTICLES)
+                # apply the squash factor
+                self.weights = np.power(self.weights, self.INV_SQUASH_FACTOR)
+            else:
+                print "Cannot use radial optimizations with non-CDDT based methods, use rangelib_variant 2"
+        elif self.RANGELIB_VAR == VAR_REPEAT_ANGLES_EVAL_SENSOR_ONE_SHOT:
             self.queries[:,:] = proposal_dist[:,:]
             self.range_method.calc_range_repeat_angles_eval_sensor_model(self.queries, self.downsampled_angles, obs, self.weights)
             np.power(self.weights, self.INV_SQUASH_FACTOR, self.weights)
@@ -532,7 +561,7 @@ class ParticleFiler():
                 weight = np.power(weight, self.INV_SQUASH_FACTOR)
                 weights[i] = weight
         else:
-            print "PLEASE SET rangelib_variant PARAM to 0-3"
+            print "PLEASE SET rangelib_variant PARAM to 0-4"
 
     def MCL(self, a, o):
         '''
