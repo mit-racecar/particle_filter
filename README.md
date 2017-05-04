@@ -51,3 +51,15 @@ This code is the staff solution to the lab guide found in the [/docs](/particle_
 There is also documentation on RangeLibc in the [/docs](/particle_filter/docs) folder.
 
 The code itself also contains comments describing purpose of each method.
+
+# Cite
+
+This library accompanies the following publication.
+
+    @article{walsh17,
+        author = {Corey Walsh and 
+                  Sertac Karaman},
+        title  = {CDDT: Fast Approximate 2D Ray Casting for Accelerated Localization},
+        volume = {abs/1705.01167},
+        url    = {http://arxiv.org/abs/1705.01167},
+        year   = {2017}}
