@@ -54,7 +54,7 @@ The code itself also contains comments describing purpose of each method.
 
 # Cite
 
-This library accompanies the following publication.
+This library accompanies the following [publication](http://arxiv.org/abs/1705.01167).
 
     @article{walsh17,
         author = {Corey Walsh and 
