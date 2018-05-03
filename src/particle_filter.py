@@ -40,7 +40,6 @@ class ParticleFiler():
 
     def __init__(self):
         # parameters
-        self.veh               = str(rospy.get_param("~veh"))
         self.localization_frame = str(rospy.get_param("~localization_frame"))
         self.map_frame         = str(rospy.get_param("~map_frame"))
         self.base_link_frame   = str(rospy.get_param("~base_link_frame"))
@@ -176,7 +175,7 @@ class ParticleFiler():
 
         # this may cause issues with the TF tree. If so, see the below code.
         self.pub_tf.sendTransform((pose[0],pose[1],0),tf.transformations.quaternion_from_euler(0, 0, pose[2]), 
-               stamp , "{0}/{1}".format(self.veh, self.localization_frame), self.map_frame)
+               stamp , self.localization_frame, self.map_frame)
         # also publish odometry to facilitate getting the localization pose
         if self.PUBLISH_ODOM:
             odom = Odometry()
