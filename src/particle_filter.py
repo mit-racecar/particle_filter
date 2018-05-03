@@ -40,6 +40,10 @@ class ParticleFiler():
 
     def __init__(self):
         # parameters
+        self.localization_frame = str(rospy.get_param("~localization_frame"))
+        self.map_frame         = str(rospy.get_param("~map_frame"))
+        self.base_link_frame   = str(rospy.get_param("~base_link_frame"))
+
         self.ANGLE_STEP        = int(rospy.get_param("~angle_step"))
         self.MAX_PARTICLES     = int(rospy.get_param("~max_particles"))
         self.MAX_VIZ_PARTICLES = int(rospy.get_param("~max_viz_particles"))
@@ -105,13 +109,13 @@ class ParticleFiler():
         self.initialize_global()
 
         # these topics are for visualization
-        self.pose_pub      = rospy.Publisher("/pf/viz/inferred_pose", PoseStamped, queue_size = 1)
-        self.particle_pub  = rospy.Publisher("/pf/viz/particles", PoseArray, queue_size = 1)
-        self.pub_fake_scan = rospy.Publisher("/pf/viz/fake_scan", LaserScan, queue_size = 1)
-        self.rect_pub      = rospy.Publisher("/pf/viz/poly1", PolygonStamped, queue_size = 1)
+        self.pose_pub      = rospy.Publisher("pf/viz/inferred_pose", PoseStamped, queue_size = 1)
+        self.particle_pub  = rospy.Publisher("pf/viz/particles", PoseArray, queue_size = 1)
+        self.pub_fake_scan = rospy.Publisher("pf/viz/fake_scan", LaserScan, queue_size = 1)
+        self.rect_pub      = rospy.Publisher("pf/viz/poly1", PolygonStamped, queue_size = 1)
 
         if self.PUBLISH_ODOM:
-            self.odom_pub = rospy.Publisher("/pf/pose/odom", Odometry, queue_size = 1)
+            self.odom_pub = rospy.Publisher("pf/pose/odom", Odometry, queue_size = 1)
 
         # these topics are for coordinate space things
         self.pub_tf = tf.TransformBroadcaster()
@@ -171,12 +175,11 @@ class ParticleFiler():
 
         # this may cause issues with the TF tree. If so, see the below code.
         self.pub_tf.sendTransform((pose[0],pose[1],0),tf.transformations.quaternion_from_euler(0, 0, pose[2]), 
-               stamp , "/laser", "/map")
-
+               stamp , self.localization_frame, self.map_frame)
         # also publish odometry to facilitate getting the localization pose
         if self.PUBLISH_ODOM:
             odom = Odometry()
-            odom.header = Utils.make_header("/map", stamp)
+            odom.header = Utils.make_header(self.map_frame, stamp)
             odom.pose.pose.position.x = pose[0]
             odom.pose.pose.position.y = pose[1]
             odom.pose.pose.orientation = Utils.angle_to_quaternion(pose[2])
@@ -187,11 +190,11 @@ class ParticleFiler():
         """
         Our particle filter provides estimates for the "laser" frame
         since that is where our laser range estimates are measure from. Thus,
-        We want to publish a "map" -> "laser" transform.
+        We want to publish a self.map_frame -> "laser" transform.
 
-        However, the car's position is measured with respect to the "base_link"
+        However, the car's position is measured with respect to the self.base_link_frame
         frame (it is the root of the TF tree). Thus, we should actually define
-        a "map" -> "base_link" transform as to not break the TF tree.
+        a self.map_frame -> self.base_link_frame transform as to not break the TF tree.
         """
 
         # Get map -> laser transform.
@@ -203,7 +206,7 @@ class ParticleFiler():
         map_laser_pos -= np.dot(tf.transformations.quaternion_matrix(tf.transformations.unit_vector(map_laser_rotation))[:3,:3], laser_base_link_offset).T
 
         # Publish transform
-        self.pub_tf.sendTransform(map_laser_pos, map_laser_rotation, stamp , "/base_link", "/map")
+        self.pub_tf.sendTransform(map_laser_pos, map_laser_rotation, stamp , self.base_link_frame, self.map_frame)
 
     def visualize(self):
         '''
@@ -215,7 +218,7 @@ class ParticleFiler():
         if self.pose_pub.get_num_connections() > 0 and isinstance(self.inferred_pose, np.ndarray):
             # Publish the inferred pose for visualization
             ps = PoseStamped()
-            ps.header = Utils.make_header("map")
+            ps.header = Utils.make_header(self.map_frame)
             ps.pose.position.x = self.inferred_pose[0]
             ps.pose.position.y = self.inferred_pose[1]
             ps.pose.orientation = Utils.angle_to_quaternion(self.inferred_pose[2])
@@ -242,14 +245,14 @@ class ParticleFiler():
     def publish_particles(self, particles):
         # publish the given particles as a PoseArray object
         pa = PoseArray()
-        pa.header = Utils.make_header("map")
+        pa.header = Utils.make_header(self.map_frame)
         pa.poses = Utils.particles_to_poses(particles)
         self.particle_pub.publish(pa)
 
     def publish_scan(self, angles, ranges):
         # publish the given angels and ranges as a laser scan message
         ls = LaserScan()
-        ls.header = Utils.make_header("laser", stamp=self.last_stamp)
+        ls.header = Utils.make_header(self.localization_frame, stamp=self.last_stamp)
         ls.angle_min = np.min(angles)
         ls.angle_max = np.max(angles)
         ls.angle_increment = np.abs(angles[0] - angles[1])
