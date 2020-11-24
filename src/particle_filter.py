@@ -51,6 +51,8 @@ class ParticleFiler():
         self.SHOW_FINE_TIMING  = bool(rospy.get_param("~fine_timing", "0"))
         self.PUBLISH_ODOM      = bool(rospy.get_param("~publish_odom", "1"))
         self.DO_VIZ            = bool(rospy.get_param("~viz"))
+        self.PUBLISH_MAP_TO_ODOM = bool(rospy.get_param("~publish_map_to_odom", "0"))
+        self.TRANSFORM_TOLERANCE = float(rospy.get_param("~transform_tolerance", 0.5))
 
         # sensor model constants
         self.Z_SHORT   = float(rospy.get_param("~z_short", 0.01))
@@ -116,6 +118,9 @@ class ParticleFiler():
         # these topics are for coordinate space things
         self.pub_tf = tf.TransformBroadcaster()
 
+        if self.PUBLISH_MAP_TO_ODOM:
+            self.tf_listener = tf.TransformListener()
+
         # these topics are to receive data from the racecar
         self.laser_sub = rospy.Subscriber(rospy.get_param("~scan_topic", "/scan"), LaserScan, self.lidarCB, queue_size=1)
         self.odom_sub  = rospy.Subscriber(rospy.get_param("~odometry_topic", "/odom"), Odometry, self.odomCB, queue_size=1)
@@ -170,8 +175,9 @@ class ParticleFiler():
             stamp = rospy.Time.now()
 
         # this may cause issues with the TF tree. If so, see the below code.
-        self.pub_tf.sendTransform((pose[0],pose[1],0),tf.transformations.quaternion_from_euler(0, 0, pose[2]), 
-               stamp , "/laser", "/map")
+        if not self.PUBLISH_MAP_TO_ODOM:
+            self.pub_tf.sendTransform((pose[0],pose[1],0),tf.transformations.quaternion_from_euler(0, 0, pose[2]),
+                   stamp , "/laser", "/map")
 
         # also publish odometry to facilitate getting the localization pose
         if self.PUBLISH_ODOM:
@@ -181,7 +187,40 @@ class ParticleFiler():
             odom.pose.pose.position.y = pose[1]
             odom.pose.pose.orientation = Utils.angle_to_quaternion(pose[2])
             self.odom_pub.publish(odom)
-        
+
+        """
+         Our particle filter provides estimates for the "laser" frame
+         since that is where our laser range estimates are measure from. Thus,
+         it provides the "map" -> "laser" transform.
+
+         However, to make this compatible with libraries such as move_base
+         in the ROS navigation stack, we need to publish a "map" -> "odom" transform.
+         """
+
+        if self.PUBLISH_MAP_TO_ODOM:
+            # Get map -> laser transform.
+            map_laser_pos = np.array((pose[0], pose[1], 0))
+            map_laser_rotation = np.array(tf.transformations.quaternion_from_euler(0, 0, pose[2]))
+            # Get laser -> odom transform.
+            t = self.tf_listener.getLatestCommonTime("/laser", "/odom")
+            laser_odom_pos, laser_odom_quaternion = self.tf_listener.lookupTransform("/laser", "/odom", t)
+
+            # Apply laser -> odom transform to map -> laser transform
+            # This gives a map -> odom transform
+            map_laser_matrix = self.tf_listener.fromTranslationRotation(map_laser_pos, map_laser_rotation)
+            laser_odom_matrix = self.tf_listener.fromTranslationRotation(laser_odom_pos, laser_odom_quaternion)
+            map_odom_matrix = np.dot(map_laser_matrix, laser_odom_matrix)
+
+            map_odom_pos = map_odom_matrix[:3, 3]
+            map_odom_rotation = tf.transformations.quaternion_from_matrix(map_odom_matrix)
+
+            # Transform tolerance is the time with which to post-date the transform that is published
+            # to indicate that this transform is valid into the future
+            stamp = stamp + rospy.Duration.from_sec(self.TRANSFORM_TOLERANCE)
+
+            # Publish transform
+            self.pub_tf.sendTransform(map_odom_pos, map_odom_rotation, stamp, "/odom", "/map")
+
         return # below this line is disabled
 
         """
