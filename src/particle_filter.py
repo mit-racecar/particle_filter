@@ -368,11 +368,11 @@ class ParticleFiler():
 
         t = time.time()
         # d is the computed range from RangeLibc
-        for d in xrange(table_width):
+        for d in range(table_width):
             norm = 0.0
             sum_unkown = 0.0
             # r is the observed range from the lidar unit
-            for r in xrange(table_width):
+            for r in range(table_width):
                 prob = 0.0
                 z = float(r-d)
                 # reflects from the intended object
@@ -556,7 +556,7 @@ class ParticleFiler():
             intrng = np.rint(ranges).astype(np.uint16)
 
             # compute the weight for each particle
-            for i in xrange(self.MAX_PARTICLES):
+            for i in range(self.MAX_PARTICLES):
                 weight = np.product(self.sensor_model_table[intobs,intrng[i*num_rays:(i+1)*num_rays]])
                 weight = np.power(weight, self.INV_SQUASH_FACTOR)
                 weights[i] = weight

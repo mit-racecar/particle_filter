@@ -31,6 +31,7 @@ include_directories(
 install(PROGRAMS 
 src/particle_filter.py 
 src/utils.py
+DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 # Install launch and other files 
