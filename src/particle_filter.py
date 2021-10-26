@@ -122,7 +122,7 @@ class ParticleFiler():
         self.pose_sub  = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.clicked_pose, queue_size=1)
         self.click_sub = rospy.Subscriber("/clicked_point", PointStamped, self.clicked_pose, queue_size=1)
 
-        print "Finished initializing, waiting on messages..."
+        print("Finished initializing, waiting on messages...")
 
     def get_omap(self):
         '''
@@ -140,13 +140,13 @@ class ParticleFiler():
         self.MAX_RANGE_PX = int(self.MAX_RANGE_METERS / self.map_info.resolution)
 
         # initialize range method
-        print "Initializing range method:", self.WHICH_RM
+        print("Initializing range method:", self.WHICH_RM)
         if self.WHICH_RM == "bl":
             self.range_method = range_libc.PyBresenhamsLine(oMap, self.MAX_RANGE_PX)
         elif "cddt" in self.WHICH_RM:
             self.range_method = range_libc.PyCDDTCast(oMap, self.MAX_RANGE_PX, self.THETA_DISCRETIZATION)
             if self.WHICH_RM == "pcddt":
-                print "Pruning..."
+                print("Pruning...")
                 self.range_method.prune()
         elif self.WHICH_RM == "rm":
             self.range_method = range_libc.PyRayMarching(oMap, self.MAX_RANGE_PX)
@@ -154,7 +154,7 @@ class ParticleFiler():
             self.range_method = range_libc.PyRayMarchingGPU(oMap, self.MAX_RANGE_PX)
         elif self.WHICH_RM == "glt":
             self.range_method = range_libc.PyGiantLUTCast(oMap, self.MAX_RANGE_PX, self.THETA_DISCRETIZATION)
-        print "Done loading map"
+        print("Done loading map")
 
          # 0: permissible, -1: unmapped, 100: blocked
         array_255 = np.array(map_msg.data).reshape((map_msg.info.height, map_msg.info.width))
@@ -263,12 +263,12 @@ class ParticleFiler():
         Initializes reused buffers, and stores the relevant laser scanner data for later use.
         '''
         if not isinstance(self.laser_angles, np.ndarray):
-            print "...Received first LiDAR message"
+            print("...Received first LiDAR message")
             self.laser_angles = np.linspace(msg.angle_min, msg.angle_max, len(msg.ranges))
             self.downsampled_angles = np.copy(self.laser_angles[0::self.ANGLE_STEP]).astype(np.float32)
             self.viz_queries = np.zeros((self.downsampled_angles.shape[0],3), dtype=np.float32)
             self.viz_ranges = np.zeros(self.downsampled_angles.shape[0], dtype=np.float32)
-            print self.downsampled_angles.shape[0]
+            print(self.downsampled_angles.shape[0])
 
         # store the necessary scanner information for later processing
         self.downsampled_ranges = np.array(msg.ranges[::self.ANGLE_STEP])
@@ -299,7 +299,7 @@ class ParticleFiler():
             self.last_stamp = msg.header.stamp
             self.odom_initialized = True
         else:
-            print "...Received first Odometry message"
+            print("...Received first Odometry message")
             self.last_pose = pose
 
         # this topic is slower than lidar, so update every time we receive a message
@@ -318,8 +318,8 @@ class ParticleFiler():
         '''
         Initialize particles in the general region of the provided pose.
         '''
-        print "SETTING POSE"
-        print pose
+        print("SETTING POSE")
+        print(pose)
         self.state_lock.acquire()
         self.weights = np.ones(self.MAX_PARTICLES) / float(self.MAX_PARTICLES)
         self.particles[:,0] = pose.position.x + np.random.normal(loc=0.0,scale=0.5,size=self.MAX_PARTICLES)
@@ -331,7 +331,7 @@ class ParticleFiler():
         '''
         Spread the particle distribution over the permissible region of the state space.
         '''
-        print "GLOBAL INITIALIZATION"
+        print("GLOBAL INITIALIZATION")
         # randomize over grid coordinate space
         self.state_lock.acquire()
         permissible_x, permissible_y = np.where(self.permissible_region == 1)
@@ -355,7 +355,7 @@ class ParticleFiler():
         This table is indexed by the sensor model at runtime by discretizing the measurements
         and computed ranges from RangeLibc.
         '''
-        print "Precomputing sensor model"
+        print("Precomputing sensor model")
         # sensor model constants
         z_short = self.Z_SHORT
         z_max   = self.Z_MAX
@@ -368,11 +368,11 @@ class ParticleFiler():
 
         t = time.time()
         # d is the computed range from RangeLibc
-        for d in xrange(table_width):
+        for d in range(table_width):
             norm = 0.0
             sum_unkown = 0.0
             # r is the observed range from the lidar unit
-            for r in xrange(table_width):
+            for r in range(table_width):
                 prob = 0.0
                 z = float(r-d)
                 # reflects from the intended object
@@ -496,7 +496,7 @@ class ParticleFiler():
                 # apply the squash factor
                 self.weights = np.power(self.weights, self.INV_SQUASH_FACTOR)
             else:
-                print "Cannot use radial optimizations with non-CDDT based methods, use rangelib_variant 2"
+                print("Cannot use radial optimizations with non-CDDT based methods, use rangelib_variant 2")
         elif self.RANGELIB_VAR == VAR_REPEAT_ANGLES_EVAL_SENSOR_ONE_SHOT:
             self.queries[:,:] = proposal_dist[:,:]
             self.range_method.calc_range_repeat_angles_eval_sensor_model(self.queries, self.downsampled_angles, obs, self.weights)
@@ -521,8 +521,8 @@ class ParticleFiler():
                 t_total = (t_squash - t_start) / 100.0
 
             if self.SHOW_FINE_TIMING and self.iters % 10 == 0:
-                print "sensor_model: init: ", np.round((t_init-t_start)/t_total, 2), "range:", np.round((t_range-t_init)/t_total, 2), \
-                      "eval:", np.round((t_eval-t_range)/t_total, 2), "squash:", np.round((t_squash-t_eval)/t_total, 2)
+                print("sensor_model: init: ", np.round((t_init-t_start)/t_total, 2), "range:", np.round((t_range-t_init)/t_total, 2), \
+                      "eval:", np.round((t_eval-t_range)/t_total, 2), "squash:", np.round((t_squash-t_eval)/t_total, 2))
         elif self.RANGELIB_VAR == VAR_CALC_RANGE_MANY_EVAL_SENSOR:
             # this version demonstrates what this would look like with coordinate space conversion pushed to rangelib
             # this part is inefficient since it requires a lot of effort to construct this redundant array
@@ -556,12 +556,12 @@ class ParticleFiler():
             intrng = np.rint(ranges).astype(np.uint16)
 
             # compute the weight for each particle
-            for i in xrange(self.MAX_PARTICLES):
+            for i in range(self.MAX_PARTICLES):
                 weight = np.product(self.sensor_model_table[intobs,intrng[i*num_rays:(i+1)*num_rays]])
                 weight = np.power(weight, self.INV_SQUASH_FACTOR)
                 weights[i] = weight
         else:
-            print "PLEASE SET rangelib_variant PARAM to 0-4"
+            print("PLEASE SET rangelib_variant PARAM to 0-4")
 
     def MCL(self, a, o):
         '''
@@ -598,8 +598,8 @@ class ParticleFiler():
             t_total = (t_norm - t)/100.0
 
         if self.SHOW_FINE_TIMING and self.iters % 10 == 0:
-            print "MCL: propose: ", np.round((t_propose-t)/t_total, 2), "motion:", np.round((t_motion-t_propose)/t_total, 2), \
-                  "sensor:", np.round((t_sensor-t_motion)/t_total, 2), "norm:", np.round((t_norm-t_sensor)/t_total, 2)
+            print("MCL: propose: ", np.round((t_propose-t)/t_total, 2), "motion:", np.round((t_motion-t_propose)/t_total, 2), \
+                  "sensor:", np.round((t_sensor-t_motion)/t_total, 2), "norm:", np.round((t_norm-t_sensor)/t_total, 2))
 
         # save the particles
         self.particles = proposal_distribution
@@ -616,7 +616,7 @@ class ParticleFiler():
         '''
         if self.lidar_initialized and self.odom_initialized and self.map_initialized:
             if self.state_lock.locked():
-                print "Concurrency error avoided"
+                print("Concurrency error avoided")
             else:
                 self.state_lock.acquire()
                 self.timer.tick()
@@ -642,7 +642,7 @@ class ParticleFiler():
                 ips = 1.0 / (t2 - t1)
                 self.smoothing.append(ips)
                 if self.iters % 10 == 0:
-                    print "iters per sec:", int(self.timer.fps()), " possible:", int(self.smoothing.mean())
+                    print("iters per sec:", int(self.timer.fps()), " possible:", int(self.smoothing.mean()))
 
                 self.visualize()
 
@@ -656,7 +656,7 @@ def load_params_from_yaml(fp):
     with open(fp, 'r') as infile:
         yaml_data = load(infile)
         for param in yaml_data:
-            print "param:", param, ":", yaml_data[param]
+            print("param:", param, ":", yaml_data[param])
             rospy.set_param("~"+param, yaml_data[param])
 
 # this function can be used to generate flame graphs easily

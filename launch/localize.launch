@@ -27,7 +27,7 @@
 		publish_odom: whether or not to publish inferred pose as an odometry message.
 		              publishes on /pf/pose/odom
 	 -->
-	<include file="$(find particle_filter)/launch/map_server.launch"/>
+	<!-- <include file="$(find particle_filter)/launch/map_server.launch"/> -->
 
 	<arg name="scan_topic" default="/scan"/>
 	<arg name="odometry_topic" default="/vesc/odom"/>
@@ -45,7 +45,7 @@
 		<param name="max_particles" value="$(arg max_particles)"/>
 		<param name="max_viz_particles" value="60"/>
 		<!-- <param name="range_method" value="pcddt"/> -->
-		<param name="range_method" value="pcddt"/>
+		<param name="range_method" value="rmgpu"/>
 		<param name="squash_factor" value="$(arg squash_factor)"/>
 		<param name="theta_discretization" value="112"/>
 		<!-- max sensor range in meters -->
