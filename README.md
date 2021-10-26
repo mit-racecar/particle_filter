@@ -13,7 +13,7 @@ To run this, you need to ensure that both the map_server ROS package, and the py
 For the map server:
 ```
 sudo apt-get update
-rosdep install -r --from-paths src --ignore-src --rosdistro kinetic -y
+rosdep install --from-paths src/ --ignore-src -y
 ```
 
 For [RangeLibc](https://github.com/kctess5/range_libc):
