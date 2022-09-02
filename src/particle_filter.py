@@ -12,7 +12,7 @@ import tf
 import utils as Utils
 
 # messages
-from std_msgs.msg import String, Header, Float32MultiArray
+from std_msgs.msg import String, Header, Float32MultiArray, Bool
 from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point, Pose, PoseStamped, PoseArray, Quaternion, PolygonStamped,Polygon, Point32, PoseWithCovarianceStamped, PointStamped
@@ -124,6 +124,7 @@ class ParticleFiler():
         self.click_sub = rospy.Subscriber("/clicked_point", PointStamped, self.clicked_pose, queue_size=1)
 
         self.pose_pub = rospy.Publisher('/pf_pose', PoseStamped, queue_size=1)
+        self.pf_init_pub = rospy.Publisher('/pf_init', Bool, queue_size=1)
 
         print "Finished initializing, waiting on messages..."
 
@@ -619,6 +620,10 @@ class ParticleFiler():
         Ensures the state is correctly initialized, and acquires the state lock before proceeding.
         '''
         if self.lidar_initialized and self.odom_initialized and self.map_initialized:
+            init_msg = Bool()
+            init_msg.data = True
+            self.pf_init_pub.publish(init_msg)
+            self.pf_init_pub
             if self.state_lock.locked():
                 print "Concurrency error avoided"
             else:
@@ -655,6 +660,10 @@ class ParticleFiler():
                     print "iters per sec:", int(self.timer.fps()), " possible:", int(self.smoothing.mean())
 
                 self.visualize()
+        else:
+            init_msg = Bool()
+            init_msg.data = False
+            self.pf_init_pub.publish(init_msg)
 
 import argparse
 import sys
