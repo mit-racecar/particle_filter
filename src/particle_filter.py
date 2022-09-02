@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 # packages
 import rospy
 import numpy as np
@@ -121,6 +122,8 @@ class ParticleFiler():
         self.odom_sub  = rospy.Subscriber(rospy.get_param("~odometry_topic", "/odom"), Odometry, self.odomCB, queue_size=1)
         self.pose_sub  = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.clicked_pose, queue_size=1)
         self.click_sub = rospy.Subscriber("/clicked_point", PointStamped, self.clicked_pose, queue_size=1)
+
+        self.pose_pub = rospy.Publisher('/pf_pose', PoseStamped, queue_size=1)
 
         print "Finished initializing, waiting on messages..."
 
@@ -343,7 +346,8 @@ class ParticleFiler():
         permissible_states[:,2] = np.random.random(self.MAX_PARTICLES) * np.pi * 2.0
 
         Utils.map_to_world(permissible_states, self.map_info)
-        self.particles = permissible_states
+        # self.particles = permissible_states
+        self.particles = np.zeros((self.MAX_PARTICLES, 3))
         self.weights[:] = 1.0 / self.MAX_PARTICLES
         self.state_lock.release()
 
@@ -632,6 +636,12 @@ class ParticleFiler():
 
                 # compute the expected value of the robot pose
                 self.inferred_pose = self.expected_pose()
+                
+                msg = PoseStamped()
+                msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = self.inferred_pose
+                #x = xposistion, y = posistion, z = ORIENTATION
+                self.pose_pub.publish(msg)
+
                 self.state_lock.release()
                 t2 = time.time()
 
