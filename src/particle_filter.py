@@ -52,6 +52,7 @@ class ParticleFiler():
         self.SHOW_FINE_TIMING  = bool(rospy.get_param("~fine_timing", "0"))
         self.PUBLISH_ODOM      = bool(rospy.get_param("~publish_odom", "1"))
         self.DO_VIZ            = bool(rospy.get_param("~viz"))
+        self.MAP_ADDR          = str(rospy.get_param("~map_addr"))
 
         # sensor model constants
         self.Z_SHORT   = float(rospy.get_param("~z_short", 0.01))
@@ -123,7 +124,7 @@ class ParticleFiler():
         self.pose_sub  = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.clicked_pose, queue_size=1)
         self.click_sub = rospy.Subscriber("/clicked_point", PointStamped, self.clicked_pose, queue_size=1)
 
-        self.pose_pub = rospy.Publisher('/pf_pose', PoseStamped, queue_size=1)
+        self.pf_pose_pub = rospy.Publisher('/pf_pose', PoseStamped, queue_size=1)
         self.pf_init_pub = rospy.Publisher('/pf_init', Bool, queue_size=1)
 
         print "Finished initializing, waiting on messages..."
@@ -645,7 +646,7 @@ class ParticleFiler():
                 msg = PoseStamped()
                 msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = self.inferred_pose
                 #x = xposistion, y = posistion, z = ORIENTATION
-                self.pose_pub.publish(msg)
+                self.pf_pose_pub.publish(msg)
 
                 self.state_lock.release()
                 t2 = time.time()
