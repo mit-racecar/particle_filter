@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 # packages
 import rospy
 import numpy as np
@@ -11,7 +12,7 @@ import tf
 import utils as Utils
 
 # messages
-from std_msgs.msg import String, Header, Float32MultiArray
+from std_msgs.msg import String, Header, Float32MultiArray, Bool
 from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point, Pose, PoseStamped, PoseArray, Quaternion, PolygonStamped,Polygon, Point32, PoseWithCovarianceStamped, PointStamped
@@ -51,6 +52,7 @@ class ParticleFiler():
         self.SHOW_FINE_TIMING  = bool(rospy.get_param("~fine_timing", "0"))
         self.PUBLISH_ODOM      = bool(rospy.get_param("~publish_odom", "1"))
         self.DO_VIZ            = bool(rospy.get_param("~viz"))
+        self.MAP_ADDR          = str(rospy.get_param("~map_addr"))
 
         # sensor model constants
         self.Z_SHORT   = float(rospy.get_param("~z_short", 0.01))
@@ -121,6 +123,9 @@ class ParticleFiler():
         self.odom_sub  = rospy.Subscriber(rospy.get_param("~odometry_topic", "/odom"), Odometry, self.odomCB, queue_size=1)
         self.pose_sub  = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.clicked_pose, queue_size=1)
         self.click_sub = rospy.Subscriber("/clicked_point", PointStamped, self.clicked_pose, queue_size=1)
+
+        self.pf_pose_pub = rospy.Publisher('/pf_pose', PoseStamped, queue_size=1)
+        self.pf_init_pub = rospy.Publisher('/pf_init', Bool, queue_size=1)
 
         print "Finished initializing, waiting on messages..."
 
@@ -343,7 +348,8 @@ class ParticleFiler():
         permissible_states[:,2] = np.random.random(self.MAX_PARTICLES) * np.pi * 2.0
 
         Utils.map_to_world(permissible_states, self.map_info)
-        self.particles = permissible_states
+        # self.particles = permissible_states
+        self.particles = np.zeros((self.MAX_PARTICLES, 3))
         self.weights[:] = 1.0 / self.MAX_PARTICLES
         self.state_lock.release()
 
@@ -615,6 +621,10 @@ class ParticleFiler():
         Ensures the state is correctly initialized, and acquires the state lock before proceeding.
         '''
         if self.lidar_initialized and self.odom_initialized and self.map_initialized:
+            init_msg = Bool()
+            init_msg.data = True
+            self.pf_init_pub.publish(init_msg)
+            self.pf_init_pub
             if self.state_lock.locked():
                 print "Concurrency error avoided"
             else:
@@ -632,6 +642,12 @@ class ParticleFiler():
 
                 # compute the expected value of the robot pose
                 self.inferred_pose = self.expected_pose()
+                
+                msg = PoseStamped()
+                msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = self.inferred_pose
+                #x = xposistion, y = posistion, z = ORIENTATION
+                self.pf_pose_pub.publish(msg)
+
                 self.state_lock.release()
                 t2 = time.time()
 
@@ -645,6 +661,10 @@ class ParticleFiler():
                     print "iters per sec:", int(self.timer.fps()), " possible:", int(self.smoothing.mean())
 
                 self.visualize()
+        else:
+            init_msg = Bool()
+            init_msg.data = False
+            self.pf_init_pub.publish(init_msg)
 
 import argparse
 import sys
