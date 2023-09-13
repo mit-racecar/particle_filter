@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# packages needed
+# packages 
 import rospy
 import numpy as np
 import range_libc
@@ -171,7 +171,7 @@ class ParticleFiler():
 
         # this may cause issues with the TF tree. If so, see the below code.
         self.pub_tf.sendTransform((pose[0],pose[1],0),tf.transformations.quaternion_from_euler(0, 0, pose[2]), 
-               stamp , "/laser", "/map")
+               stamp , "/AR1_base_link", "/map")
 
         # also publish odometry to facilitate getting the localization pose
         if self.PUBLISH_ODOM:
