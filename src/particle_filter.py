@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# packages
+# packages needed
 import rospy
 import numpy as np
 import range_libc
