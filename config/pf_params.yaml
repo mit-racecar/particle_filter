@@ -1,0 +1,47 @@
+# particle_filter_params.yaml
+
+# Particle Filter
+scan_topic: /scan
+odometry_topic: /odom
+
+# range data is downsampled by this factor
+angle_step: 18
+max_particles: 10000
+max_viz_particles: 10
+
+# range_method: glt
+range_method: cddt
+squash_factor: 3.2
+theta_discretization: 180
+
+# max sensor range in meters
+max_range: 10
+viz: false
+fine_timing: false
+publish_odom: true
+
+# sensor model constants
+z_short: 0.01
+z_max: 0.07
+z_rand: 0.12
+z_hit: 0.75
+sigma_hit: 8.0
+
+# motion model dispersion constant
+
+
+# motion model dispersion constant, this could be improved. Large values will spread out
+# the particle distribution more. Too much and it is overly computational to represent the
+# true prob. dist, too little and the particle filter can diverge at high speeds where the
+# ackermann motion model is inaccurate
+
+motion_dispersion_x: 0.05
+motion_dispersion_y: 0.025
+motion_dispersion_theta: 0.025
+
+# rangelib_variant
+# This option switches between different sensor model variants, high values are more
+# optimized. range_variant 3 does not work for rmgpu, but variant 2 is very good. variant
+# 4 only works with cddt or pcddt range_method options
+
+rangelib_variant: 4
