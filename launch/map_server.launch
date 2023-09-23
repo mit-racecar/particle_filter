@@ -1,4 +1,5 @@
 <launch>
-    <arg name="map" default="$(find particle_filter)/maps/basement_fixed.map.yaml"/>
+    <!-- <arg name="map" default="$(find racer)/maps/map.yaml"/> -->
+    <arg name="map" default="$(find racer)/maps/hector.yaml"/>
     <node pkg="map_server" name="map_server" type="map_server" args="$(arg map)" />
 </launch>

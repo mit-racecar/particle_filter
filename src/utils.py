@@ -82,7 +82,7 @@ def particles_to_poses(particles):
     ''' Converts a two dimensional array of particles into an array of Poses. 
         Particles can be a array like [[x0, y0, theta0], [x1, y1, theta1]...]
     '''
-    return map(particle_to_pose, particles)
+    return list(map(particle_to_pose, particles))
 
 def make_header(frame_id, stamp=None):
     ''' Creates a Header object for stamped ROS objects '''

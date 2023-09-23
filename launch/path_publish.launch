@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+
+<launch>
+  
+  <node name="path_publisher" pkg="racer" type="path_publisher.py" output="screen">
+    <param name="path_publisher_name"        value="pf_cddt_path_node" />
+    <param name="pub_topic"                  value="pf_cddt_path" />
+    <param name="sub_topic"                  value="/pf/viz/inferred_pose" /> <!--/mcl_pose-->
+    <param name="groud_truth_aval"           value="1" />
+    <param name="groud_truth_topic"          value="/camera/odom/sample" />
+  </node>
+
+</launch>
